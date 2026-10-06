@@ -1,0 +1,69 @@
+{
+  "name": "@easymate/desktop",
+  "version": "0.2.16",
+  "private": true,
+  "description": "EasyMate cross-platform local AI workspace.",
+  "main": "src/main/index.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "pnpm --filter @easymate/contracts build && pnpm --filter @easymate/tools build && pnpm --filter @easymate/storage build && pnpm --filter @easymate/channel build && pnpm --filter @easymate/gateway build && pnpm --filter @easymate/agent-core build && pnpm --filter @easymate/orchestrator build && pnpm --filter @easymate/api build && pnpm --filter @easymate/renderer build",
+    "stage": "node scripts/stage.mjs",
+    "package": "node ../../scripts/prepare-python-runtime.mjs && pnpm build && pnpm stage && electron-builder --publish never",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "electron": "^37.2.4",
+    "electron-builder": "^24.13.3",
+    "electron-builder-squirrel-windows": "^24.13.3",
+    "typescript": "^5.8.3"
+  },
+  "build": {
+    "appId": "com.easymate.desktop",
+    "productName": "EasyMate",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "icon": "build/icon.png",
+    "files": [
+      "src/main/**",
+      "src/preload/**",
+      "stage/renderer/**",
+      "stage/sqljs/**"
+    ],
+    "extraResources": [
+      {
+        "from": "stage/api",
+        "to": "api"
+      },
+      {
+        "from": "stage/python-runtime",
+        "to": "python-runtime"
+      }
+    ],
+    "asar": true,
+    "mac": {
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    }
+  },
+  "dependencies": {
+    "sql.js": "^1.14.2"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"],
+  "exclude": [
+    "src/agentscope/**",
+    "src/dsh/**",
+    "src/agentscope-capability-adapter.ts",
+    "src/dsh-capability-adapter.ts",
+    "src/mcp-dsh-bridge.ts",
+    "src/execution-backend.ts",
+    "src/execution-backends.ts",
+    "src/execution-routing-config.ts",
+    "src/test/agentscope-capability-adapter.test.ts",
+    "src/test/dsh-capability-adapter.test.ts",
+    "src/test/dsh-mcp-bridge.test.ts",
+    "src/test/dsh-mcp-skills.test.ts",
+    "src/test/dsh-mcp-startup.test.ts"
+  ]
+}

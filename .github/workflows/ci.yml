@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Enable Corepack (uses packageManager-pinned pnpm)
+        run: corepack enable
+      - name: Verify pnpm version
+        run: pnpm --version
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm orch:smoke
+      - run: pnpm auth:regression
+      - run: pnpm audit:regression
+      - run: pnpm product:regression
+      - run: pnpm size:check
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test --project=web-chromium
+
+  desktop-package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            artifact: macos-arm64
+            expected_extension: dmg
+            max_package_mb: 200
+          - os: windows-latest
+            artifact: windows-x64
+            expected_extension: exe
+            max_package_mb: 220
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Enable Corepack (uses packageManager-pinned pnpm)
+        run: corepack enable
+      - name: Verify pnpm version
+        run: pnpm --version
+      - run: pnpm install --frozen-lockfile
+      - name: Package ${{ matrix.artifact }}
+        run: pnpm package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Electron E2E
+        run: pnpm exec playwright test --project=electron
+      - name: Verify platform artifacts
+        shell: bash
+        run: |
+          find apps/desktop/release -type f -name "*.${{ matrix.expected_extension }}" -print -quit | grep -q .
+      - name: Report and enforce package-size budget
+        run: node scripts/report-package-size.mjs apps/desktop/release ${{ matrix.max_package_mb }}
+      # PR 构建只做可构建性与体积校验，不保存临时安装包，避免占用 Actions Artifact 配额。

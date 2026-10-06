@@ -1,0 +1,60 @@
+# EasyMate full runtime image (China mainland pip mirror).
+# Multi-stage: bake Node deps + AgentScope venv, then copy a cleaned tree.
+# Keeps @lancedb/lancedb and apache-arrow. Image stays offline-capable.
+
+FROM node:22-bookworm-slim AS builder
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /root/.config/pip \
+  && printf '[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple\n' > /root/.config/pip/pip.conf
+
+WORKDIR /opt/easymate
+
+COPY package.docker.json ./package.json
+COPY README.md README-EN.md ./
+COPY bin ./bin
+COPY scripts/lib ./scripts/lib
+COPY apps/api/dist ./apps/api/dist
+COPY apps/renderer/dist ./apps/renderer/dist
+COPY apps/gateway/package.json ./apps/gateway/package.json
+COPY apps/gateway/dist ./apps/gateway/dist
+COPY packages/channel/package.json ./packages/channel/package.json
+COPY packages/channel/dist ./packages/channel/dist
+COPY runtimes/python-runtime ./runtimes/python-runtime
+COPY deploy/docker/easymate/slim-runtime.sh ./deploy/docker/easymate/slim-runtime.sh
+
+RUN npm install --omit=dev --no-audit --no-fund \
+  && chmod +x bin/easymate.mjs deploy/docker/easymate/slim-runtime.sh \
+  && python3 -m venv --copies runtimes/python-runtime/.venv \
+  && runtimes/python-runtime/.venv/bin/python3 -m pip install --upgrade pip \
+  && runtimes/python-runtime/.venv/bin/python3 -m pip install -r runtimes/python-runtime/requirements.txt \
+  && bash deploy/docker/easymate/slim-runtime.sh /opt/easymate \
+  && npm cache clean --force \
+  && rm -rf /root/.npm /root/.cache /tmp/*
+
+FROM node:22-bookworm-slim AS runtime
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV NODE_ENV=production \
+    EASYMATE_DATA_DIR=/opt/easymate-data \
+    EASYMATE_API_HOST=0.0.0.0 \
+    EASYMATE_API_PORT=49832 \
+    EASYMATE_AGENT_ENGINE=agentscope
+
+WORKDIR /opt/easymate
+
+COPY --from=builder /opt/easymate /opt/easymate
+
+RUN mkdir -p /opt/easymate-data \
+  && chmod +x bin/easymate.mjs
+
+EXPOSE 49832
+VOLUME ["/opt/easymate-data"]
+
+CMD ["node", "bin/easymate.mjs", "start"]

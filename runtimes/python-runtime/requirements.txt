@@ -1,0 +1,3 @@
+# Intentionally empty. The base package contains only portable CPython.
+# Optional MarkItDown/Docling dependencies are installed on demand into the
+# user's component directory and never inflate the default installer.
